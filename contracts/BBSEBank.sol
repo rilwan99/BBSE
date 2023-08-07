@@ -18,6 +18,7 @@ contract BBSEBank {
   
   // Minimum deposit amount
   // TODO: Create a uint MIN_DEPOSIT_AMOUNT constant variable
+  uint public constant MIN_DEPOSIT_AMOUNT = 1 ether;
 
   /* Interest earned per second for a minumum deposit amount.
    * Equals to the yearly return of the minimum deposit amount
@@ -27,8 +28,8 @@ contract BBSEBank {
 
   // Represents an investor record
   struct Investor {   // TODO: Complete the missing types
-    // hasActiveDeposit;
-    // amount;
+    bool hasActiveDeposit;
+    uint amount;
     uint startTime;
   }
 
@@ -48,9 +49,12 @@ contract BBSEBank {
     bbseTokenContract = BBSEToken(_bbseTokenContract);
     
     // TODO: Check yearly return rate and set the variable
+    require(_yearlyReturnRate >= 1, "Yearly return rate must be between 1 and 100");
+    require(_yearlyReturnRate <= 100, "Yearly return rate must be between 1 and 100");
 
     // TODO: Uncomment
-    // interestPerSecondForMinDeposit = ((MIN_DEPOSIT_AMOUNT * yearlyReturnRate) / 100) / YEAR_SECONDS;
+    interestPerSecondForMinDeposit = ((MIN_DEPOSIT_AMOUNT * yearlyReturnRate) / 100) / YEAR_SECONDS;
+    yearlyReturnRate = _yearlyReturnRate;
   }
 
   /**
@@ -61,6 +65,12 @@ contract BBSEBank {
   */
   function deposit() payable public{
     // TODO: Complete the function
+    address investor = msg.sender;
+    uint amount = msg.value;
+    require(!investors[investor].hasActiveDeposit, "Account can't have multiple active deposits");
+    require(amount >= MIN_DEPOSIT_AMOUNT, "Minimum deposit amount is 1 Ether");
+
+    investors[investor] = Investor(true, amount, block.number);
   }
 
   /**
@@ -76,27 +86,33 @@ contract BBSEBank {
     Investor storage investor = investors[msg.sender];
     
     // TODO: Uncomment
-    // uint depositedAmount = investor.amount;
+    uint depositedAmount = investor.amount;
+    require(investor.hasActiveDeposit == true, "Account must have an active deposit to withdraw");
 
     // TODO: Find the deposit duration and store it in uint depositDuration variable (block_number_difference x block_time)
+    uint depositDuration = (block.number - investor.startTime) * BLOCK_TIME;
 
 
     // TODO: Uncomment
-    // uint interestPerSecond = interestPerSecondForMinDeposit * (depositedAmount / MIN_DEPOSIT_AMOUNT);
+    uint interestPerSecond = interestPerSecondForMinDeposit * (depositedAmount / MIN_DEPOSIT_AMOUNT);
 
     /* TODO: Calculate the interest using interestPerSecond and depositDuration
     *        Store it in uint interest variable
     */
+   uint interest = interestPerSecond * depositDuration;
 
     /* TODO: Reset the respective investor object in investors mapping
     *        You can set the amount and start time to 0
     */
-
+   investor.amount = 0;
+   investor.startTime = 0;
+   investor.hasActiveDeposit = false;
     /* TODO: Send back the deposited Ether to investor using the transfer method
     *        Dont' forget to cast the investor address to a payable address
     */
-
+   payable(msg.sender).transfer(depositedAmount);
     // TODO: Mint BBSE tokens to to pay out the interest
+    bbseTokenContract.mint(msg.sender, interest);
   }
   
 }
